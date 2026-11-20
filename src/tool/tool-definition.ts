@@ -1,46 +1,66 @@
-import type { Tool, DeserializeResult } from '@itsjust/core';
-import toolConfig from './tool.config';
-import type { ToolState, SlugSeparator } from './types';
+import type { Tool, ToolConfig, ToolExporterDefinition, DeserializeResult } from '@itsjust/core';
+import toolConfig, { RATIO_PRESETS } from './tool.config';
+import type { ToolState, FitMode, Orientation } from './types';
+import { isValidDimension } from './ratio';
 
-const SEPARATORS: readonly string[] = ['-', '_', '.'];
+export { RATIO_PRESETS };
 
-function isToolState(value: unknown): value is ToolState {
+export const initialState: ToolState = {
+  ratioW: 16,
+  ratioH: 9,
+  width: '1920',
+  height: '',
+  fitMode: 'fit',
+  boxWidth: '1280',
+  boxHeight: '720',
+  integerMode: false,
+  orientation: 'landscape',
+};
+
+function isPositiveNumber(value: unknown): value is number {
+  return isValidDimension(value);
+}
+
+function isFitMode(value: unknown): value is FitMode {
+  return value === 'fit' || value === 'cover';
+}
+
+function isOrientation(value: unknown): value is Orientation {
+  return value === 'landscape' || value === 'portrait';
+}
+
+export function isToolState(value: unknown): value is ToolState {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Partial<ToolState>;
   return (
-    typeof v.input === 'string' &&
-    (v.separator === '-' || v.separator === '_' || v.separator === '.') &&
-    typeof v.transliterate === 'boolean' &&
-    typeof v.removeStopWords === 'boolean' &&
-    typeof v.maxLength === 'number' &&
-    Number.isFinite(v.maxLength) &&
-    v.maxLength >= 0 &&
-    typeof v.batchMode === 'boolean' &&
-    typeof v.output === 'string'
+    isPositiveNumber(v.ratioW) &&
+    isPositiveNumber(v.ratioH) &&
+    typeof v.width === 'string' &&
+    typeof v.height === 'string' &&
+    isFitMode(v.fitMode) &&
+    typeof v.boxWidth === 'string' &&
+    typeof v.boxHeight === 'string' &&
+    typeof v.integerMode === 'boolean' &&
+    isOrientation(v.orientation)
   );
 }
 
-export const slugGeneratorTool: Tool<ToolState> = {
+export const aspectRatioTool: Tool<ToolState> = {
   id: toolConfig.id,
   name: toolConfig.name,
   version: toolConfig.version,
-  config: toolConfig,
-  initialState: {
-    input: 'Café Müller — A Guide to URL-Friendly Titles!',
-    separator: '-',
-    transliterate: true,
-    removeStopWords: false,
-    maxLength: 0,
-    batchMode: false,
-    output: '',
-  },
-  serialize: (state) => JSON.stringify(state),
-  deserialize: (data): DeserializeResult<ToolState> => {
+  config: toolConfig as unknown as ToolConfig,
+  initialState,
+  serialize: (state: ToolState): string => JSON.stringify(state),
+  deserialize: (data: unknown): DeserializeResult<ToolState> => {
     try {
       if (isToolState(data)) {
         return { success: true, data };
       }
-      return { success: false, error: 'Invalid data format: expected valid slug generator state' };
+      return {
+        success: false,
+        error: 'Invalid data format: expected valid aspect ratio calculator state',
+      };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Deserialization error';
       return { success: false, error: `Failed to deserialize state: ${message}` };
@@ -51,31 +71,26 @@ export const slugGeneratorTool: Tool<ToolState> = {
     { format: 'jpeg', loader: () => import('./exporters/jpeg') },
     { format: 'webp', loader: () => import('./exporters/webp') },
     { format: 'pdf', loader: () => import('./exporters/pdf') },
-  ],
+  ] as ToolExporterDefinition[],
 };
 
-/** Back-compat class-style wrapper used by unit tests. */
-export class SlugGeneratorToolDefinition {
-  initialState: ToolState = slugGeneratorTool.initialState;
+/** Class-style wrapper kept for compatibility with state-transition helpers. */
+export class AspectRatioToolDefinition {
+  initialState: ToolState = initialState;
 
   serialize(state: ToolState): string {
-    return slugGeneratorTool.serialize(state);
+    return aspectRatioTool.serialize(state);
   }
 
-  deserialize(serialized: string | unknown): DeserializeResult<ToolState> {
+  deserialize(serialized: string): DeserializeResult<ToolState> {
     try {
-      const parsed: unknown =
-        typeof serialized === 'string' ? JSON.parse(serialized) : serialized;
-      return slugGeneratorTool.deserialize(parsed);
+      const parsed: unknown = JSON.parse(serialized);
+      return aspectRatioTool.deserialize(parsed);
     } catch {
       return {
         success: false,
-        error: 'Invalid data format: expected valid slug generator state',
+        error: 'Invalid data format: expected valid aspect ratio calculator state',
       };
     }
   }
-}
-
-export function isSeparator(value: unknown): value is SlugSeparator {
-  return typeof value === 'string' && SEPARATORS.includes(value);
 }

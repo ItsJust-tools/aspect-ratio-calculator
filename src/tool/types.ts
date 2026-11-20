@@ -1,18 +1,33 @@
-export type SlugSeparator = '-' | '_' | '.';
+export type FitMode = 'fit' | 'cover';
+export type Orientation = 'landscape' | 'portrait';
 
 export interface ToolState {
-  /** Raw input text. In batch mode this may contain multiple lines. */
-  input: string;
-  /** Configured word separator for the generated slug. */
-  separator: SlugSeparator;
-  /** Transliterate accented characters (é -> e, ü -> ue). */
-  transliterate: boolean;
-  /** Remove common English stop words before slugifying. */
-  removeStopWords: boolean;
-  /** Optional maximum slug length (0 = unlimited). */
-  maxLength: number;
-  /** Batch mode: one slug per input line. */
-  batchMode: boolean;
-  /** Last generated slug preview (single line result). */
-  output: string;
+  /** Ratio numerator (e.g. 16) */
+  ratioW: number;
+  /** Ratio denominator (e.g. 9) */
+  ratioH: number;
+  /** Known width input, empty string when solving for width */
+  width: string;
+  /** Known height input, empty string when solving for height */
+  height: string;
+  /** Fit (contain) / cover mode for bounding-box resizing */
+  fitMode: FitMode;
+  /** Bounding box width for fit/cover */
+  boxWidth: string;
+  /** Bounding box height for fit/cover */
+  boxHeight: string;
+  /** Round results to the nearest valid integer dimensions */
+  integerMode: boolean;
+  /** Current ratio orientation label */
+  orientation: Orientation;
+}
+
+export interface Dimensions {
+  width: number;
+  height: number;
+}
+
+export interface RatioResult {
+  ratioW: number;
+  ratioH: number;
 }

@@ -1,124 +1,139 @@
 'use client';
 
-import type { ToolState, SlugSeparator } from '../types';
+import { useMemo } from 'react';
+import type { ToolState } from '../types';
+import { RATIO_PRESETS } from '../tool.config';
+import { fitDimensions, parseDimension, simplifyRatio, solveMissing } from '../ratio';
 
 interface ToolSidebarProps {
   state: ToolState;
-  onChange: (state: ToolState) => void;
+  onStateChange: (state: ToolState) => void;
 }
 
-const SEPARATOR_OPTIONS: Array<{ value: SlugSeparator; label: string }> = [
-  { value: '-', label: 'Dash (-)' },
-  { value: '_', label: 'Underscore (_)' },
-  { value: '.', label: 'Dot (.)' },
-];
+function fmt(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
 
-const SAMPLES: Array<{ label: string; input: string }> = [
-  { label: 'Blog post title', input: 'The Best Coffee Shops in Berlin' },
-  { label: 'Accented text', input: 'Café Müller in Köln — Über den Dächern' },
-  { label: 'Product name', input: 'Acme® Super-Duper Widget (2024 Edition)! »' },
-];
+export function ToolSidebar({ state, onStateChange }: ToolSidebarProps) {
+  const solved = useMemo(
+    () =>
+      solveMissing(state.ratioW, state.ratioH, {
+        width: parseDimension(state.width),
+        height: parseDimension(state.height),
+      }),
+    [state]
+  );
+  const simplified = useMemo(() => {
+    const w = parseDimension(state.width);
+    const h = parseDimension(state.height);
+    return w !== null && h !== null ? simplifyRatio(w, h) : null;
+  }, [state]);
+  const fitted = useMemo(
+    () =>
+      fitDimensions(
+        state.ratioW,
+        state.ratioH,
+        parseDimension(state.boxWidth) ?? 0,
+        parseDimension(state.boxHeight) ?? 0,
+        state.fitMode,
+        state.integerMode
+      ),
+    [state]
+  );
 
-const MAX_LENGTH_PRESETS = [0, 30, 50, 75, 100];
-
-export function ToolSidebar({ state, onChange }: ToolSidebarProps) {
-  const patch = (partial: Partial<ToolState>) => onChange({ ...state, ...partial });
+  const copy = async (text: string) => {
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+  };
 
   return (
-    <div className="slug-sidebar">
+    <div className="arc-sidebar flex flex-col gap-4 p-2 text-sm">
       <div className="sidebar-section">
-        <h3>Options</h3>
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="separator-select" className="text-xs font-medium mb-1 block">
-              Separator
-            </label>
-            <select
-              id="separator-select"
-              value={state.separator}
-              onChange={(e) => patch({ separator: e.target.value as SlugSeparator })}
-              className="slug-select"
-            >
-              {SEPARATOR_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <label className="flex items-center justify-between gap-2 text-xs font-medium">
-            <span>Transliterate accents (é &rarr; e, ü &rarr; ue)</span>
-            <input
-              type="checkbox"
-              checked={state.transliterate}
-              onChange={(e) => patch({ transliterate: e.target.checked })}
-              className="slug-checkbox"
-            />
-          </label>
-
-          <label className="flex items-center justify-between gap-2 text-xs font-medium">
-            <span>Remove stop words (the, a, an, of, and…)</span>
-            <input
-              type="checkbox"
-              checked={state.removeStopWords}
-              onChange={(e) => patch({ removeStopWords: e.target.checked })}
-              className="slug-checkbox"
-            />
-          </label>
-
-          <div>
-            <label htmlFor="maxlength-select" className="text-xs font-medium mb-1 block">
-              Maximum length (0 = unlimited)
-            </label>
-            <select
-              id="maxlength-select"
-              value={state.maxLength}
-              onChange={(e) => patch({ maxLength: Number(e.target.value) })}
-              className="slug-select"
-            >
-              {MAX_LENGTH_PRESETS.map((n) => (
-                <option key={n} value={n}>
-                  {n === 0 ? 'Unlimited' : `${n} characters`}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <label className="flex items-center justify-between gap-2 text-xs font-medium">
-            <span>Batch mode (one slug per line)</span>
-            <input
-              type="checkbox"
-              checked={state.batchMode}
-              onChange={(e) => patch({ batchMode: e.target.checked })}
-              className="slug-checkbox"
-            />
-          </label>
-        </div>
-      </div>
-
-      <div className="sidebar-section">
-        <h3>Samples</h3>
-        <div className="space-y-2">
-          {SAMPLES.map((s) => (
+        <h3>Presets</h3>
+        <div className="flex flex-wrap gap-1">
+          {RATIO_PRESETS.map((p) => (
             <button
-              key={s.label}
+              key={p.label}
               type="button"
-              className="slug-sample-btn"
-              onClick={() => patch({ input: s.input })}
+              className={`rounded border px-2 py-0.5 text-xs ${
+                state.ratioW === p.w && state.ratioH === p.h
+                  ? 'bg-blue-500 text-white'
+                  : 'hover:bg-blue-500/10'
+              }`}
+              onClick={() =>
+                onStateChange({
+                  ...state,
+                  ratioW: p.w,
+                  ratioH: p.h,
+                  orientation: p.w >= p.h ? 'landscape' : 'portrait',
+                })
+              }
             >
-              {s.label}
+              {p.label}
             </button>
           ))}
         </div>
       </div>
 
       <div className="sidebar-section">
-        <h3>Actions</h3>
-        <button type="button" className="slug-sample-btn" onClick={() => patch({ input: '' })}>
-          Clear input
-        </button>
+        <h3>Result</h3>
+        <div className="stat-row flex items-center justify-between gap-2">
+          <span>{solved ? `${fmt(solved.width)} × ${fmt(solved.height)}` : '—'}</span>
+          <button
+            type="button"
+            className="rounded border px-2 py-0.5 text-xs hover:bg-blue-500/10 disabled:opacity-40"
+            onClick={() => copy(solved ? `${fmt(solved.width)} × ${fmt(solved.height)}` : '')}
+            disabled={!solved}
+            aria-label="Copy solved dimensions"
+          >
+            Copy
+          </button>
+        </div>
+        <div className="stat-row flex items-center justify-between gap-2">
+          <span className="opacity-70">Ratio</span>
+          <span>
+            {state.ratioW}:{state.ratioH}
+          </span>
+        </div>
+      </div>
+
+      <div className="sidebar-section">
+        <h3>Simplified</h3>
+        <div className="stat-row flex items-center justify-between gap-2">
+          <span>{simplified ? `${simplified.ratioW}:${simplified.ratioH}` : '—'}</span>
+          <button
+            type="button"
+            className="rounded border px-2 py-0.5 text-xs hover:bg-blue-500/10 disabled:opacity-40"
+            onClick={() => copy(simplified ? `${simplified.ratioW}:${simplified.ratioH}` : '')}
+            disabled={!simplified}
+            aria-label="Copy simplified ratio"
+          >
+            Copy
+          </button>
+        </div>
+      </div>
+
+      <div className="sidebar-section">
+        <h3>Fit / Cover</h3>
+        <div className="stat-row flex items-center justify-between gap-2">
+          <span>{fitted ? `${fmt(fitted.width)} × ${fmt(fitted.height)}` : '—'}</span>
+          <button
+            type="button"
+            className="rounded border px-2 py-0.5 text-xs hover:bg-blue-500/10 disabled:opacity-40"
+            onClick={() => copy(fitted ? `${fmt(fitted.width)} × ${fmt(fitted.height)}` : '')}
+            disabled={!fitted}
+            aria-label="Copy fit dimensions"
+          >
+            Copy
+          </button>
+        </div>
+        <div className="stat-row flex items-center justify-between gap-2">
+          <span className="opacity-70">Mode</span>
+          <span>{state.fitMode}</span>
+        </div>
       </div>
     </div>
   );
 }
+
+export default ToolSidebar;

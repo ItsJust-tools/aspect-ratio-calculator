@@ -12,11 +12,8 @@ import {
 import { ToolShell, useTool, ImportExport } from '@itsjust/core';
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 import { toolConfig, templateBaseVersion, ToolCanvas, ToolToolbar, ToolSidebar } from '@/tool';
-import { slugGeneratorTool } from '@/tool/tool-definition';
-import type { ToolState } from '@/tool/types';
-import { generateSlugs } from '@/tool/slugify';
-
-const DEFAULT_FONT_SIZE = 16;
+import { notepadTool as aspectRatioToolDef } from '@/tool/notepad-state';
+import type { ToolState } from '@/tool';
 
 export default function ToolClient() {
   const ToolShellCompat = ToolShell as unknown as ComponentType<Record<string, unknown>> & {
@@ -27,7 +24,7 @@ export default function ToolClient() {
     StatusBar?: ComponentType<{ children?: ReactNode }>;
   };
   const canvasRef = useRef<HTMLDivElement>(null);
-  const tool = useTool<ToolState>(slugGeneratorTool, canvasRef);
+  const tool = useTool<ToolState>(aspectRatioToolDef, canvasRef);
   const setToolData = tool.state.setData;
   const showToast = tool.toast;
   const [isSharing, setIsSharing] = useState(false);
@@ -35,7 +32,6 @@ export default function ToolClient() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(
     () => typeof window !== 'undefined' && window.innerWidth > 768 && toolConfig.features.sidebar
   );
-  const [fontSize] = useState(DEFAULT_FONT_SIZE);
 
   const title = toolConfig.name;
 
@@ -43,13 +39,14 @@ export default function ToolClient() {
     document.title = title;
   }, [title]);
 
-  const handleChange = useCallback(
+  const handleStateChange = useCallback(
     (next: ToolState) => {
-      setToolData(() => ({ ...next, output: generateSlugs(next) }));
+      setToolData(next);
     },
     [setToolData]
   );
 
+  // Load state from a shared URL (?state=<lz>, ?tool=<id>).
   useEffect(() => {
     if (hasLoadedSharedState.current) return;
     hasLoadedSharedState.current = true;
@@ -60,20 +57,38 @@ export default function ToolClient() {
       const serialized = decompressFromEncodedURIComponent(encodedState);
       if (!serialized) throw new Error('Invalid shared URL');
       const parsed: unknown = JSON.parse(serialized);
-      const deserialized = slugGeneratorTool.deserialize(parsed);
+      const deserialized = aspectRatioToolDef.deserialize(parsed);
       if (!deserialized.success) throw new Error(deserialized.error);
-      handleChange(deserialized.data);
+      setToolData(deserialized.data);
       showToast('Loaded state from shared URL', 'success');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load shared URL';
       showToast(message, 'error');
     }
-  }, [handleChange, showToast]);
+  }, [setToolData, showToast]);
+
+  // Keep the URL in sync with the current state so calculations can be shared via link.
+  useEffect(() => {
+    if (!hasLoadedSharedState.current) return;
+    const timer = window.setTimeout(() => {
+      try {
+        const serialized = aspectRatioToolDef.serialize(tool.state.data);
+        const encodedState = compressToEncodedURIComponent(serialized);
+        const url = new URL(window.location.href);
+        url.searchParams.set('state', encodedState);
+        url.searchParams.set('tool', toolConfig.id);
+        window.history.replaceState(null, '', url.toString());
+      } catch {
+        // Non-fatal: URL sync is best-effort.
+      }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [tool.state.data]);
 
   const handleShare = useCallback(async () => {
     setIsSharing(true);
     try {
-      const serialized = slugGeneratorTool.serialize(tool.state.data);
+      const serialized = aspectRatioToolDef.serialize(tool.state.data);
       const encodedState = compressToEncodedURIComponent(serialized);
       if (!encodedState) throw new Error('Failed to encode state for URL');
       const url = new URL(window.location.href);
@@ -115,11 +130,9 @@ export default function ToolClient() {
     </>
   );
 
-  const sidebarContent = <ToolSidebar state={tool.state.data} onChange={handleChange} />;
+  const sidebarContent = <ToolSidebar state={tool.state.data} onStateChange={handleStateChange} />;
 
-  const canvasContent = (
-    <ToolCanvas state={tool.state.data} onChange={handleChange} canvasRef={canvasRef} />
-  );
+  const canvasContent = <ToolCanvas state={tool.state.data} onChange={handleStateChange} />;
 
   const statusBarContent = (
     <>
@@ -137,8 +150,8 @@ export default function ToolClient() {
           'Ready'
         )}
       </span>
-      <span className="status-slot status-slot-separator">
-        Separator: {tool.state.data.separator}
+      <span className="status-slot status-slot-ratio">
+        {tool.state.data.ratioW}:{tool.state.data.ratioH}
       </span>
       <span className="status-slot status-slot-tool-version">Tool v{toolConfig.version}</span>
       <span className="status-slot status-slot-template-version">
@@ -149,16 +162,18 @@ export default function ToolClient() {
 
   const hasLegacySections = Boolean(
     ToolShellCompat.Toolbar &&
-      ToolShellCompat.Body &&
-      ToolShellCompat.Sidebar &&
-      ToolShellCompat.Canvas &&
-      ToolShellCompat.StatusBar
+    ToolShellCompat.Body &&
+    ToolShellCompat.Sidebar &&
+    ToolShellCompat.Canvas &&
+    ToolShellCompat.StatusBar
   );
+
+  const actions = useMemo(() => tool.toolbarActions, [tool.toolbarActions]);
 
   return (
     <ToolShellCompat
       config={toolConfig}
-      actions={useMemo(() => tool.toolbarActions, [tool.toolbarActions])}
+      actions={actions}
       sidebarOpen={sidebarOpen}
       onSidebarChange={setSidebarOpen}
       toolbar={toolbarContent}
@@ -175,7 +190,9 @@ export default function ToolClient() {
             const SidebarSection = ToolShellCompat.Sidebar as ComponentType<{
               children?: ReactNode;
             }>;
-            const CanvasSection = ToolShellCompat.Canvas as ComponentType<{ children?: ReactNode }>;
+            const CanvasSection = ToolShellCompat.Canvas as ComponentType<{
+              children?: ReactNode;
+            }>;
             const StatusBarSection = ToolShellCompat.StatusBar as ComponentType<{
               children?: ReactNode;
             }>;

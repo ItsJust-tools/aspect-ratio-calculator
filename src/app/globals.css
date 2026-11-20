@@ -540,55 +540,41 @@ body {
   color: var(--accent);
 }
 
-/* --- Notepad Canvas --- */
+/* --- Aspect Ratio Calculator --- */
 
-.notepad-canvas {
+.arc-canvas {
   width: 100%;
   height: 100%;
   min-height: 100%;
   background: var(--card);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.notepad-textarea {
-  flex: 1;
-  width: 100%;
-  min-height: 100%;
-  padding: clamp(1rem, 2.5vw, 2rem);
-  background: transparent;
+  overflow: auto;
   color: var(--foreground);
-  border: none;
-  outline: none;
-  resize: none;
-  font-family: ui-monospace, Menlo, Monaco, 'Cascadia Code', 'Segoe UI Mono', monospace;
-  line-height: 1.6;
-  caret-color: var(--accent);
 }
 
-.notepad-textarea::placeholder {
-  color: var(--muted);
-  opacity: 0.6;
+.arc-canvas section {
+  border-color: var(--border);
+  background: var(--background);
 }
 
-/* --- Notepad Toolbar --- */
+.arc-canvas input[type='number'],
+.arc-canvas input[type='text'] {
+  border-color: var(--border);
+  color: var(--foreground);
+}
 
-.notepad-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.arc-canvas h2,
+.arc-canvas h3 {
+  color: var(--foreground);
+}
+
+.arc-canvas .sidebar-section h3 + * {
+  color: var(--foreground);
+}
+
+.arc-toolbar {
+  border-left: 1px solid var(--border);
   padding-left: 0.5rem;
   margin-left: 0.25rem;
-  border-left: 1px solid var(--border);
-}
-
-/* --- Notepad Sidebar --- */
-
-.notepad-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
 }
 
 .stats-list {
@@ -700,33 +686,19 @@ body {
     overflow: visible !important;
   }
 
-  .notepad-canvas {
+  .arc-canvas {
     overflow: visible !important;
     height: auto !important;
     min-height: 0 !important;
     background: #fff !important;
   }
 
-  .notepad-textarea {
-    flex: none !important;
-    min-height: 0 !important;
-    height: auto !important;
-    overflow: visible !important;
-    border: none !important;
-    outline: none !important;
-    resize: none !important;
-    background: transparent !important;
+  .arc-canvas input {
     color: #000 !important;
-    padding: 1rem !important;
-    font-family:
-      ui-monospace, Menlo, Monaco, 'Cascadia Code', 'Segoe UI Mono', monospace !important;
-    line-height: 1.6 !important;
-    white-space: pre-wrap !important;
-    word-break: break-word !important;
-    overflow-wrap: anywhere !important;
+    background: transparent !important;
   }
 
-  .notepad-textarea::placeholder {
+  .arc-canvas input::placeholder {
     color: transparent !important;
   }
 }
@@ -816,105 +788,4 @@ body {
   text-decoration: underline;
   font-weight: 600;
   margin-left: 0.25rem;
-}
-
-/* --- Slug Generator --- */
-
-.slug-canvas {
-  width: 100%;
-  height: 100%;
-  background: var(--card);
-}
-
-.slug-textarea {
-  flex: 1;
-  width: 100%;
-  min-height: 10rem;
-  padding: 0.75rem;
-  background: var(--card);
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  outline: none;
-  resize: vertical;
-  font-family: ui-monospace, Menlo, Monaco, 'Cascadia Code', 'Segoe UI Mono', monospace;
-  line-height: 1.6;
-  transition-colors: border-color;
-  transition: border-color 150ms ease;
-}
-
-.slug-textarea:focus {
-  border-color: var(--accent);
-}
-
-.slug-preview {
-  min-height: 2.5rem;
-  background: var(--muted-bg);
-  border-color: var(--border);
-  color: var(--foreground);
-}
-
-.slug-btn {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: 0.25rem;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--foreground);
-  transition: background-color 150ms ease, border-color 150ms ease;
-}
-
-.slug-btn:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.slug-btn:disabled {
-  opacity: 0.5;
-}
-
-.slug-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding-left: 0.5rem;
-  margin-left: 0.25rem;
-  border-left: 1px solid var(--border);
-}
-
-.slug-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.slug-select {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  background: var(--card);
-  color: var(--foreground);
-  padding: 0.375rem 0.6rem;
-  font-size: 0.875rem;
-}
-
-.slug-checkbox {
-  accent-color: var(--accent);
-}
-
-.slug-sample-btn {
-  width: 100%;
-  text-align: left;
-  font-size: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--foreground);
-  transition: background-color 150ms ease, border-color 150ms ease;
-}
-
-.slug-sample-btn:hover {
-  background: var(--accent-subtle);
-  border-color: var(--accent);
 }

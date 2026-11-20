@@ -1,30 +1,35 @@
-import type { ToolConfig } from '@itsjust/core';
-import packageJson from '../../package.json';
-
-export const templateBaseVersion = packageJson.version;
+import type { ExportFormat } from '@itsjust/core';
 
 export const toolConfig = {
-  id: '1795152181',
-  name: 'Slug Generator',
+  id: '1795172676',
+  name: 'Aspect Ratio Calculator',
+  category: 'Utility',
   description:
-    'Converts text into URL-safe slugs with customizable separators, transliteration of accented characters, optional stop-word removal, and length limits.',
+    'Calculate missing dimensions from an aspect ratio, simplify ratios, and get fit/cover dimensions for resizing.',
   version: '1.0.0',
-  exportFormats: ['png', 'jpeg', 'webp', 'pdf'],
+  exportFormats: ['png', 'jpeg', 'webp', 'pdf'] as ExportFormat[],
   features: {
     export: true,
     autoSave: true,
     undoRedo: true,
-    sidebar: true,
     statusBar: true,
     darkMode: true,
+    sidebar: true,
   },
   theme: {
-    accent: '#10b981',
-    accentHover: '#059669',
-    accentSubtle: 'rgba(16, 185, 129, 0.08)',
-    brand: 'Slug Generator',
-    icon: '🔗',
+    brand: 'ItsJust',
   },
-} satisfies ToolConfig;
+};
+
+export const templateBaseVersion = '1.1.0';
+
+export const RATIO_PRESETS: Array<{ label: string; w: number; h: number }> = [
+  { label: '16:9', w: 16, h: 9 },
+  { label: '4:3', w: 4, h: 3 },
+  { label: '1:1', w: 1, h: 1 },
+  { label: '21:9', w: 21, h: 9 },
+  { label: '3:2', w: 3, h: 2 },
+  { label: '9:16', w: 9, h: 16 },
+];
 
 export default toolConfig;

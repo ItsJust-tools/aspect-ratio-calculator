@@ -1,13 +1,21 @@
-export { default as toolConfig } from './tool.config';
-export { templateBaseVersion } from './tool.config';
+export { toolConfig, templateBaseVersion, RATIO_PRESETS } from './tool.config';
 export { templateMetadata, getPublicSiteUrl } from './template-metadata';
 export {
-  slugGeneratorTool,
-  SlugGeneratorToolDefinition,
-  isSeparator,
+  aspectRatioTool,
+  AspectRatioToolDefinition,
+  initialState,
+  isToolState,
 } from './tool-definition';
-export { slugify, transliterate, validateSlug, generateSlugs, STOP_WORDS } from './slugify';
+export { notepadTool } from './notepad-state';
+export {
+  gcd,
+  simplifyRatio,
+  solveMissing,
+  fitDimensions,
+  parseDimension,
+  isValidDimension,
+} from './ratio';
 export { ToolCanvas } from './components/tool-canvas';
 export { ToolToolbar } from './components/tool-toolbar';
 export { ToolSidebar } from './components/tool-sidebar';
-export type { ToolState, SlugSeparator } from './types';
+export type { ToolState, FitMode, Orientation, Dimensions, RatioResult } from './types';
