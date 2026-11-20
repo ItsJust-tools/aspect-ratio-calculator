@@ -11,18 +11,12 @@ import {
 } from 'react';
 import { ToolShell, useTool, ImportExport } from '@itsjust/core';
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
-import {
-  toolConfig,
-  templateBaseVersion,
-  ToolCanvas,
-  ToolToolbar,
-  ToolSidebar,
-} from '@/tool';
-import { notepadTool as notepadToolDef, type NotepadState } from '@/tool/notepad-state';
+import { toolConfig, templateBaseVersion, ToolCanvas, ToolToolbar, ToolSidebar } from '@/tool';
+import { slugGeneratorTool } from '@/tool/tool-definition';
+import type { ToolState } from '@/tool/types';
+import { generateSlugs } from '@/tool/slugify';
 
 const DEFAULT_FONT_SIZE = 16;
-const MIN_FONT_SIZE = 8;
-const MAX_FONT_SIZE = 72;
 
 export default function ToolClient() {
   const ToolShellCompat = ToolShell as unknown as ComponentType<Record<string, unknown>> & {
@@ -33,7 +27,7 @@ export default function ToolClient() {
     StatusBar?: ComponentType<{ children?: ReactNode }>;
   };
   const canvasRef = useRef<HTMLDivElement>(null);
-  const tool = useTool<NotepadState>(notepadToolDef, canvasRef);
+  const tool = useTool<ToolState>(slugGeneratorTool, canvasRef);
   const setToolData = tool.state.setData;
   const showToast = tool.toast;
   const [isSharing, setIsSharing] = useState(false);
@@ -41,24 +35,20 @@ export default function ToolClient() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(
     () => typeof window !== 'undefined' && window.innerWidth > 768 && toolConfig.features.sidebar
   );
-  const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE);
+  const [fontSize] = useState(DEFAULT_FONT_SIZE);
 
-  const title = tool.state.data.title?.trim() || toolConfig.name;
+  const title = toolConfig.name;
 
   useEffect(() => {
     document.title = title;
   }, [title]);
 
-  const handleTextChange = useCallback(
-    (text: string) => {
-      setToolData((prev) => ({ ...prev, content: text }));
+  const handleChange = useCallback(
+    (next: ToolState) => {
+      setToolData(() => ({ ...next, output: generateSlugs(next) }));
     },
     [setToolData]
   );
-
-  const handleFontSizeChange = useCallback((delta: number) => {
-    setFontSize((prev) => Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, prev + delta)));
-  }, []);
 
   useEffect(() => {
     if (hasLoadedSharedState.current) return;
@@ -70,20 +60,20 @@ export default function ToolClient() {
       const serialized = decompressFromEncodedURIComponent(encodedState);
       if (!serialized) throw new Error('Invalid shared URL');
       const parsed: unknown = JSON.parse(serialized);
-      const deserialized = notepadToolDef.deserialize(parsed);
+      const deserialized = slugGeneratorTool.deserialize(parsed);
       if (!deserialized.success) throw new Error(deserialized.error);
-      setToolData(deserialized.data);
+      handleChange(deserialized.data);
       showToast('Loaded state from shared URL', 'success');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load shared URL';
       showToast(message, 'error');
     }
-  }, [setToolData, showToast]);
+  }, [handleChange, showToast]);
 
   const handleShare = useCallback(async () => {
     setIsSharing(true);
     try {
-      const serialized = notepadToolDef.serialize(tool.state.data);
+      const serialized = slugGeneratorTool.serialize(tool.state.data);
       const encodedState = compressToEncodedURIComponent(serialized);
       if (!encodedState) throw new Error('Failed to encode state for URL');
       const url = new URL(window.location.href);
@@ -125,17 +115,10 @@ export default function ToolClient() {
     </>
   );
 
-  const sidebarContent = (
-    <ToolSidebar text={tool.state.data.content} fontSize={fontSize} onFontSizeChange={handleFontSizeChange} />
-  );
+  const sidebarContent = <ToolSidebar state={tool.state.data} onChange={handleChange} />;
 
   const canvasContent = (
-    <ToolCanvas
-      canvasRef={canvasRef}
-      text={tool.state.data.content}
-      fontSize={fontSize}
-      onChange={handleTextChange}
-    />
+    <ToolCanvas state={tool.state.data} onChange={handleChange} canvasRef={canvasRef} />
   );
 
   const statusBarContent = (
@@ -154,7 +137,9 @@ export default function ToolClient() {
           'Ready'
         )}
       </span>
-      <span className="status-slot status-slot-font-size">{fontSize}px</span>
+      <span className="status-slot status-slot-separator">
+        Separator: {tool.state.data.separator}
+      </span>
       <span className="status-slot status-slot-tool-version">Tool v{toolConfig.version}</span>
       <span className="status-slot status-slot-template-version">
         Template v{templateBaseVersion}
@@ -164,10 +149,10 @@ export default function ToolClient() {
 
   const hasLegacySections = Boolean(
     ToolShellCompat.Toolbar &&
-    ToolShellCompat.Body &&
-    ToolShellCompat.Sidebar &&
-    ToolShellCompat.Canvas &&
-    ToolShellCompat.StatusBar
+      ToolShellCompat.Body &&
+      ToolShellCompat.Sidebar &&
+      ToolShellCompat.Canvas &&
+      ToolShellCompat.StatusBar
   );
 
   return (

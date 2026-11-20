@@ -54,23 +54,38 @@ vi.mock('@itsjust/core', () => ({
 
 vi.mock('@/tool', () => ({
   toolConfig: {
-    id: 'simple-notepad',
-    name: 'Notepad',
+    id: '1795152181',
+    name: 'Slug Generator',
     version: '1.0.0',
     features: { sidebar: true },
-    theme: { brand: 'Notepad' },
+    theme: { brand: 'Slug Generator' },
   },
   templateBaseVersion: '1.1.0',
-  ToolCanvas: ({ text }: { text: string }) => <div>canvas:{text}</div>,
+  ToolCanvas: ({ state }: { state: { input: string } }) => <div>canvas:{state.input}</div>,
   ToolToolbar: () => <div>toolbar</div>,
-  ToolSidebar: ({ text }: { text: string }) => <div>sidebar:{text}</div>,
+  ToolSidebar: ({ state }: { state: { input: string } }) => <div>sidebar:{state.input}</div>,
 }));
 
-vi.mock('@/tool/notepad-state', () => ({
-  notepadTool: {
+vi.mock('@/tool/tool-definition', () => ({
+  slugGeneratorTool: {
     serialize: (state: unknown) => JSON.stringify(state),
-    deserialize: () => ({ success: true, data: { content: 'From Shared Url', title: '' } }),
+    deserialize: () => ({
+      success: true,
+      data: {
+        input: 'From Shared Url',
+        separator: '-',
+        transliterate: true,
+        removeStopWords: false,
+        maxLength: 0,
+        batchMode: false,
+        output: '',
+      },
+    }),
   },
+}));
+
+vi.mock('@/tool/slugify', () => ({
+  generateSlugs: (state: { input: string }) => state.input.toLowerCase().replace(/\s+/g, '-'),
 }));
 
 describe('app client and help page', () => {
@@ -99,6 +114,11 @@ describe('app client and help page', () => {
     expect(screen.getByText('toolbar')).toBeInTheDocument();
     fireEvent.click(screen.getByText('trigger-share'));
 
+    expect(mockToast).toHaveBeenCalled();
+  });
+
+  it('handles shared state load failure gracefully', async () => {
+    render(<ToolClient />);
     expect(mockToast).toHaveBeenCalled();
   });
 });

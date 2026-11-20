@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { generateJsonLd, generateToolMetadata } from '@/lib/seo';
 import toolConfig from '@/tool/tool.config';
 import { getPublicSiteUrl, templateMetadata } from '@/tool/template-metadata';
-import { notepadTool } from '@/tool/notepad-state';
+import { slugGeneratorTool } from '@/tool/tool-definition';
 import { ToolCanvas } from '@/tool/components/tool-canvas';
 import { ToolSidebar } from '@/tool/components/tool-sidebar';
 import { ToolToolbar } from '@/tool/components/tool-toolbar';
@@ -92,20 +92,33 @@ describe('app and seo', () => {
   it('covers tool definition and helper exports', async () => {
     expect(cn('a', undefined, 'b', false, null, 'c')).toBe('a b c');
     expect(getPublicSiteUrl()).toBe('http://localhost:3000');
-    expect(notepadTool.deserialize({ content: 'x' })).toEqual({
-      success: true,
-      data: { content: 'x', title: '' },
+
+    expect(slugGeneratorTool.id).toBe(toolConfig.id);
+    expect(slugGeneratorTool.name).toBe(toolConfig.name);
+
+    const valid = slugGeneratorTool.deserialize({
+      input: 'Hello',
+      separator: '-',
+      transliterate: true,
+      removeStopWords: false,
+      maxLength: 0,
+      batchMode: false,
+      output: '',
     });
-    expect(notepadTool.deserialize({ nope: true })).toEqual({
+    expect(valid.success).toBe(true);
+    if (valid.success) {
+      expect(valid.data.input).toBe('Hello');
+    }
+
+    expect(slugGeneratorTool.deserialize({ nope: true })).toEqual({
       success: false,
-      error: 'Invalid data format: expected { content: string, title?: string }',
+      error: 'Invalid data format: expected valid slug generator state',
     });
-    expect(notepadTool.serialize({ content: 'x' })).toContain('"content": "x"');
-    expect(notepadTool.deserialize({ content: 'x', title: 'My Note' })).toEqual({
-      success: true,
-      data: { content: 'x', title: 'My Note' },
-    });
-    const exporters = (notepadTool as { exporters?: Array<{ loader: ExporterLoader }> }).exporters ?? [];
+
+    const serialized = slugGeneratorTool.serialize(valid.success ? valid.data : slugGeneratorTool.initialState);
+    expect(() => JSON.parse(serialized)).not.toThrow();
+
+    const exporters = slugGeneratorTool.exporters ?? [];
     expect(exporters).toHaveLength(4);
     const first = exporters[0];
     expect(first).toBeDefined();
@@ -119,13 +132,37 @@ describe('app and seo', () => {
     render(
       <>
         <ToolToolbar />
-        <ToolSidebar text="Hello world" fontSize={16} onFontSizeChange={() => {}} />
-        <ToolCanvas text="" fontSize={16} />
+        <ToolSidebar
+          state={{ ...slugGeneratorTool.initialState }}
+          onChange={() => {}}
+        />
+        <ToolCanvas state={{ ...slugGeneratorTool.initialState, input: 'Hello World' }} onChange={() => {}} />
       </>
     );
 
     expect(screen.getByRole('link', { name: 'Open help page' })).toBeInTheDocument();
-    expect(screen.getByText('11')).toBeInTheDocument(); // char count for "Hello world"
-    expect(screen.getByRole('application', { name: 'Notepad canvas' })).toBeInTheDocument();
+    expect(screen.getByTestId('slug-preview')).toHaveTextContent('hello-world');
+    expect(screen.getByText('Separator')).toBeInTheDocument();
+    expect(
+      screen.getByRole('application', { name: 'Slug generator canvas' })
+    ).toBeInTheDocument();
+  });
+
+  it('updates the live slug preview as input changes', () => {
+    const { default: user } = require('@testing-library/user-event') as {
+      default: typeof import('@testing-library/user-event').default;
+    };
+    // Fallback: re-render with different state via controlled component test
+    let current = { ...slugGeneratorTool.initialState, input: 'one' };
+    const { rerender } = render(
+      <ToolCanvas state={current} onChange={(s) => (current = s)} />
+    );
+    expect(screen.getByTestId('slug-preview')).toHaveTextContent('one');
+
+    current = { ...current, input: 'one two' };
+    rerender(<ToolCanvas state={current} onChange={(s) => (current = s)} />);
+    expect(screen.getByTestId('slug-preview')).toHaveTextContent('one-two');
+
+    void user; // user-event imported for completeness; interactions covered in e2e
   });
 });
